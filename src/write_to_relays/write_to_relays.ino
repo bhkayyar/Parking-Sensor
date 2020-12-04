@@ -1,38 +1,49 @@
-// Wire Master Writer
-// by Nicholas Zambetti <http://www.zambetti.com>
+#include <SoftwareWire.h>
 
-// Demonstrates use of the Wire library
-// Writes data to an I2C/TWI slave device
-// Refer to the "Wire Slave Receiver" example for use with this
+SoftwareWire softWire(2, 3, true, false);
+#define GREEN_LIGHT 1
+#define YELLOW_LIGHT 2
+#define RED_LIGHT 3
+#define DEBUG 1
 
-// Created 29 March 2006
+void setup() {
+  softWire.begin();
+  softWire.setClock(120000);
+  pinMode(LED_BUILTIN, OUTPUT);
+  initialize_wire(softWire);
 
-// This example code is in the public domain.
-
-
-#include <Wire.h>
-
-void setup()
-{
-  Wire.begin(); // join i2c bus (address optional for master)
+  if (DEBUG) {
+    Serial.begin(115200);
+    Serial.println("Starting up.");
+  }
 }
 
-void loop()
-{
-  Wire.beginTransmission(0x6D);
-  Wire.write(0x01);              // sends one byte
-  Wire.endTransmission(); 
-  delay(500);
-  Wire.beginTransmission(0x6D);
-  Wire.write(0x02);              // sends one byte
-  Wire.endTransmission(); 
-  delay(500);
-  Wire.beginTransmission(0x6D);
-  Wire.write(0x03);              // sends one byte
-  Wire.endTransmission(); 
-  delay(500);
-  Wire.beginTransmission(0x6D);
-  Wire.write(0x04);              // sends one byte
-  Wire.endTransmission(); 
-  delay(500);
+void do_parking_sequence() {
+//  turn_relay_on(GREEN_LIGHT);
+//  delay(1000);
+//  turn_relay_off(GREEN_LIGHT);
+//  delay(1000);
+
+//  turn_relay_on(YELLOW_LIGHT);
+//  delay(1000);
+//  turn_relay_off(YELLOW_LIGHT);
+//  delay(1000);
+//
+//  turn_relay_on(RED_LIGHT);
+//  delay(1000);
+//  turn_relay_off(RED_LIGHT);
+//  delay(1000);
+
+  Serial.println("All on.");
+  turn_all_on();
+  delay(1000);
+  Serial.println("All off.");
+  turn_all_off();
+  delay(1000);
+}
+
+void loop() {
+  Serial.println("Entering sequence.");
+  do_parking_sequence();
+  Serial.println("Exiting.");
 }
