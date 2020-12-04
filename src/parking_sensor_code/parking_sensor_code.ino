@@ -1,6 +1,5 @@
+#include <SoftwareWire.h>
 #include <SharpIR.h>
-#include <Wire.h>
-#include "SparkFun_Qwiic_Relay.h"
 
 #define DEBUG 1
 
@@ -19,8 +18,15 @@
 #define MS_PER_S 1000
 #define CM_PER_FOOT 30.48
 
-#define RELAY_ADDR 0x6D // Alternate address 0x6C
-Qwiic_Relay quadRelay(RELAY_ADDR);
+// SoftwareWire constructor.
+// Parameters:
+//   (1) pin for the software sda
+//   (2) pin for the software scl
+//   (3) use internal pullup resistors. Default true. Set to false to disable them.
+//   (4) allow the Slave to stretch the clock pulse. Default true. Set to false for faster code.
+//
+// Using pin 2 (software sda) and 3 (software scl) in this example.
+SoftwareWire softWire(2, 3);
 
 SharpIR green_light_sensor(GREEN_LIGHT_SENSOR_PIN, CAR_SENSOR_MODEL);
 SharpIR yellow_light_sensor(YELLOW_LIGHT_SENSOR_PIN, CAR_SENSOR_MODEL);
@@ -29,32 +35,14 @@ SharpIR red_light_sensor(RED_LIGHT_SENSOR_PIN, CAR_SENSOR_MODEL);
 void(* resetFunc) (void) = 0; //Reset function if things go wrong.
 
 void setup() {
-  Wire.begin();
+  softWire.begin();
   pinMode(LED_BUILTIN, OUTPUT);
-  bool relay_start = quadRelay.begin();
+  initialize_wire(softWire);
 
   if (DEBUG) {
     Serial.begin(115200);
-
-    if(!relay_start) {
-      Serial.println("Check connections to Qwiic Relay.");
-    } else {
-      Serial.println("Ready to flip some switches.");
-    }
+    Serial.println("Starting up.");
   }
-
-  if (!relay_start) {
-    // If the relay seems down, flash an error code and reset the board to try again. 
-    for (int i = 0; i < 3; i++) {
-      digitalWrite(LED_BUILTIN, HIGH);
-      delay(250);
-      digitalWrite(LED_BUILTIN, LOW);
-      delay(250);
-    }
-
-    resetFunc();
-  }
-
 }
 
 bool is_vehicle_present(SharpIR sensor, int distance_threshold_ft) {
@@ -74,9 +62,9 @@ bool is_car_present(SharpIR sensor) {
 }
 
 void do_parking_sequence() {
-  quadRelay.turnRelayOn(GREEN_LIGHT);
+  turn_relay_on(GREEN_LIGHT);
 
-  while (!quadRelay.getState(RED_LIGHT)) {
+  while (!get_relay_state(RED_LIGHT)) {
     // If the car is not at the first sensor at any point in the sequence, reset. This is probably not a legitimate
     // parking situation.
     if (!is_car_present(green_light_sensor)) {
@@ -84,18 +72,18 @@ void do_parking_sequence() {
         Serial.println("Car not found at green light sensor within parking sequence. Goodbye!");
       }
       
-      quadRelay.turnAllRelaysOff();
+      turn_all_off();
       return;
     } else {
       // Here we are certain that the car is present at the green light sensor.
       if (is_car_present(yellow_light_sensor)) {
-        quadRelay.turnRelayOff(GREEN_LIGHT);
-        quadRelay.turnRelayOn(YELLOW_LIGHT);
+        turn_relay_on(YELLOW_LIGHT);
+        turn_relay_off(GREEN_LIGHT);
       }
       
       if (is_car_present(yellow_light_sensor) && is_car_present(red_light_sensor)) {
-        quadRelay.turnRelayOff(YELLOW_LIGHT);
-        quadRelay.turnRelayOn(RED_LIGHT);
+        turn_relay_on(RED_LIGHT);
+        turn_relay_off(YELLOW_LIGHT);
       }
     }
   }
@@ -106,7 +94,7 @@ void do_parking_sequence() {
 
   // Keep the red light on for 5s and then turn everything off for 25s.
   delay(5 * MS_PER_S);
-  quadRelay.turnAllRelaysOff();
+  turn_all_off();
   delay(25 * MS_PER_S);
 }
 
