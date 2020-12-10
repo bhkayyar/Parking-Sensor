@@ -1,4 +1,3 @@
-#include <SoftwareWire.h>
 #include <SharpIR.h>
 
 #define DEBUG 1
@@ -7,9 +6,9 @@
 #define YELLOW_LIGHT_SENSOR_PIN A1
 #define RED_LIGHT_SENSOR_PIN A2
 
-#define GREEN_LIGHT 1
-#define YELLOW_LIGHT 2
-#define RED_LIGHT 3
+#define GREEN_LIGHT 0
+#define YELLOW_LIGHT 1
+#define RED_LIGHT 2
 
 // 1080 for GP2Y0A21Y
 // 20150 for GP2Y0A02Y
@@ -18,16 +17,6 @@
 #define MS_PER_S 1000
 #define CM_PER_FOOT 30.48
 
-// SoftwareWire constructor.
-// Parameters:
-//   (1) pin for the software sda
-//   (2) pin for the software scl
-//   (3) use internal pullup resistors. Default true. Set to false to disable them.
-//   (4) allow the Slave to stretch the clock pulse. Default true. Set to false for faster code.
-//
-// Using pin 2 (software sda) and 3 (software scl) in this example.
-SoftwareWire softWire(2, 3);
-
 SharpIR green_light_sensor(GREEN_LIGHT_SENSOR_PIN, CAR_SENSOR_MODEL);
 SharpIR yellow_light_sensor(YELLOW_LIGHT_SENSOR_PIN, CAR_SENSOR_MODEL);
 SharpIR red_light_sensor(RED_LIGHT_SENSOR_PIN, CAR_SENSOR_MODEL);
@@ -35,9 +24,11 @@ SharpIR red_light_sensor(RED_LIGHT_SENSOR_PIN, CAR_SENSOR_MODEL);
 void(* resetFunc) (void) = 0; //Reset function if things go wrong.
 
 void setup() {
-  softWire.begin();
   pinMode(LED_BUILTIN, OUTPUT);
-  initialize_wire(softWire);
+  
+  pinMode(GREEN_LIGHT, OUTPUT);
+  pinMode(YELLOW_LIGHT, OUTPUT);
+  pinMode(RED_LIGHT, OUTPUT);
 
   if (DEBUG) {
     Serial.begin(115200);
@@ -62,9 +53,12 @@ bool is_car_present(SharpIR sensor) {
 }
 
 void do_parking_sequence() {
+  turn_all_on();
+  delay(250);
+  turn_all_off();
   turn_relay_on(GREEN_LIGHT);
 
-  while (!get_relay_state(RED_LIGHT)) {
+  while (true) {
     // If the car is not at the first sensor at any point in the sequence, reset. This is probably not a legitimate
     // parking situation.
     if (!is_car_present(green_light_sensor)) {
@@ -84,6 +78,8 @@ void do_parking_sequence() {
       if (is_car_present(yellow_light_sensor) && is_car_present(red_light_sensor)) {
         turn_relay_on(RED_LIGHT);
         turn_relay_off(YELLOW_LIGHT);
+
+        break;
       }
     }
   }
@@ -116,5 +112,6 @@ void loop() {
     }
   }
 
+  turn_all_off();
   delay(1 * MS_PER_S);
 }
