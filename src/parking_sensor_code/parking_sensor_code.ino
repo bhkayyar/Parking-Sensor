@@ -6,9 +6,9 @@
 #define YELLOW_LIGHT_SENSOR_PIN A1
 #define RED_LIGHT_SENSOR_PIN A2
 
-#define GREEN_LIGHT 0
-#define YELLOW_LIGHT 1
-#define RED_LIGHT 2
+#define GREEN_LIGHT 2
+#define YELLOW_LIGHT 3
+#define RED_LIGHT 4
 
 // 1080 for GP2Y0A21Y
 // 20150 for GP2Y0A02Y
@@ -57,10 +57,12 @@ void do_parking_sequence() {
   delay(250);
   turn_all_off();
   turn_relay_on(GREEN_LIGHT);
-
+  unsigned long t0 = millis();
+  
   while (true) {
+    delay(1000);
     // If the car is not at the first sensor at any point in the sequence, reset. This is probably not a legitimate
-    // parking situation.
+    // parking situation or the car is leaving.
     if (!is_car_present(green_light_sensor)) {
       if (DEBUG) {
         Serial.println("Car not found at green light sensor within parking sequence. Goodbye!");
@@ -73,14 +75,30 @@ void do_parking_sequence() {
       if (is_car_present(yellow_light_sensor)) {
         turn_relay_on(YELLOW_LIGHT);
         turn_relay_off(GREEN_LIGHT);
+        Serial.println("At yellow.");
+      }
+      else {
+        turn_relay_off(YELLOW_LIGHT);
+        turn_relay_on(GREEN_LIGHT);
+        Serial.println("Turning yellow off.");
       }
       
       if (is_car_present(yellow_light_sensor) && is_car_present(red_light_sensor)) {
         turn_relay_on(RED_LIGHT);
         turn_relay_off(YELLOW_LIGHT);
+        Serial.println("Car not found at green light sensor within parking sequence. Goodbye!");
 
         break;
       }
+    }
+
+    if ((millis() - t0)/MS_PER_S > 15) {
+      if (DEBUG) {
+        Serial.println("Been inside parking sequence for 15s with no red light. Bye!");
+      }
+      
+      turn_all_off();
+      return;
     }
   }
 
@@ -101,10 +119,13 @@ void loop() {
   // If the car is at the first sensor and not at the second, check again in 1s to eliminate noise. If the car is
   // indeed at the first sensor, begin parking sequence.
   if (is_car_present(green_light_sensor)
-  && !is_car_present(yellow_light_sensor)) {
+  && !is_car_present(yellow_light_sensor)
+  && !is_car_present(red_light_sensor)) {
     delay(1 * MS_PER_S);
 
-    if (is_car_present(green_light_sensor)) {
+    if (is_car_present(green_light_sensor)
+    && !is_car_present(yellow_light_sensor)
+    && !is_car_present(red_light_sensor)) {
       if (DEBUG) {
         Serial.println("Entering parking sequence!");
       }
